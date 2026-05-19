@@ -47,7 +47,11 @@ htmlcov/
 *.swp
 *.swo
 
-# uploads
+# Uploads de usuários
 uploads/
 
+# Planilhas (exceto fixtures de teste)
+*.xlsx
+
+# Logs
 *.log
