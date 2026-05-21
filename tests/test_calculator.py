@@ -7,7 +7,7 @@ Cada teste cria um DataFrame pequeno fake e valida que o relatorio gerado bate c
 import pandas as pd
 import pytest
 
-from services.campaign_calculator import calculate_report
+import services.campaign_calculator
 
 def make_ticket(
     ticket_id: str = "1",
@@ -47,7 +47,7 @@ def test_valores_por_prioridade():
 
     df = pd.DataFrame(tickets)
 
-    report = calculate_report(df)
+    report = services.campaign_calculator.calculate_report(df)
 
     assert len(report) == 1, "Deve haver apenas 1 colaborador no relatório"
 
@@ -71,7 +71,7 @@ def test_penalidade_nao_e_bug():
 
     df = pd.DataFrame(tickets)
 
-    report = calculate_report(df)
+    report = services.campaign_calculator.calculate_report(df)
 
     row = report.iloc[0]
     assert row["total_bugs"] == 2
@@ -94,7 +94,7 @@ def test_filtra_apenas_atendimento():
 
     df = pd.DataFrame(tickets)
 
-    report = calculate_report(df)
+    report = services.campaign_calculator.calculate_report(df)
 
     assert len(report) == 1, "Apenas Maria (Atendimento) deve aparecer"
     assert report.iloc[0]["Proprietário do ticket"] == "Maria"
