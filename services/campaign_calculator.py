@@ -11,9 +11,7 @@ IGNORED_STATUS = [
     'Solicitação'
     ]
 
-INFORMATIVE_PRIORITY = [
-    'Baixa'
-    ]
+INFORMATIVE_PRIORITY = 'Baixa'
 
 NOT_A_BUG_STATUS = 'Não é bug'
 NOT_A_BUG_PENALTY = -200.0
@@ -100,7 +98,7 @@ def filter_teams(df: pd.DataFrame) -> pd.DataFrame:
     return df[df['Equipes atribuídas'] == ELIGIBLE_TEAM].copy()
 
 def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
-    """"
+    """
     Gera o relatorio consolidado da campanha
 
     Args:
@@ -109,30 +107,53 @@ def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame com colunas:
             - Proprietário do ticket -> str
-            - Total BUGs -> int
-            - Positivo -> float
-            - Negativo -> float 
-            - Saldo -> float
+            - total_bugs -> int
+            - bugs_baixa -> int
+            - positivo -> float
+            - negativo -> float
+            - saldo -> float
     """
 
-    # garantia que todas colunas existem!
+    # todas colunas existem
     validate_columns(df)
 
     eligible = filter_teams(df)
 
-    eligible["valor"] = eligible.apply(calculate_ticket_value, axis=1)
+    # remove tickets sem proprietario ou sem prioridade
+    eligible = remove_invalid_tickets(eligible)
 
-    eligible["positivo"] = eligible["valor"].where(eligible["valor"] > 0, 0)
-    eligible["negativo"] = eligible["valor"].where(eligible["valor"] < 0, 0)
+    # separa os tickets de prioridade Baixa - coluna informativa
+    is_baixa = eligible["Prioridade"] == INFORMATIVE_PRIORITY
+    baixa_tickets = eligible[is_baixa]
 
-    report = eligible.groupby("Proprietário do ticket").agg(
-        total_bugs = pd.NamedAgg(column="valor", aggfunc="count"),
+    # demais tickets: remove os status ignorados
+    contaveis = eligible[~is_baixa]
+    contaveis = contaveis[~contaveis["Status do ticket"].isin(IGNORED_STATUS)]
+    contaveis = contaveis.copy()
+
+    contaveis["valor"] = contaveis.apply(calculate_ticket_value, axis=1)
+
+    contaveis["positivo"] = contaveis["valor"].where(contaveis["valor"] > 0, 0)
+    contaveis["negativo"] = contaveis["valor"].where(contaveis["valor"] < 0, 0)
+
+    report = contaveis.groupby("Proprietário do ticket").agg(
+        total_bugs = pd.NamedAgg(column="Ticket ID", aggfunc="count"),
         positivo = pd.NamedAgg(column="positivo", aggfunc="sum"),
         negativo = pd.NamedAgg(column="negativo", aggfunc="sum"),
     ).reset_index()
 
+    # conta os tickets de Baixa por proprietario
+    baixa_count = baixa_tickets.groupby("Proprietário do ticket").size()
+
+    # adiciona a coluna bugs_baixa (0 se a pessoa nao tem nenhum)
+    report["bugs_baixa"] = report["Proprietário do ticket"].map(baixa_count).fillna(0).astype(int)
+
     report["saldo"] = report["positivo"] + report["negativo"]
 
+    report = report[[
+        "Proprietário do ticket", "total_bugs", "bugs_baixa",
+        "positivo", "negativo", "saldo"
+    ]]
     report = report.sort_values(by="saldo", ascending=False).reset_index(drop=True)
 
     return report
@@ -169,3 +190,10 @@ def get_available_months(df: pd.DataFrame) -> list[tuple[int, int]]:
     
     resultado = [(p.year, p.month) for p in sorted(periodos, reverse=True)]
     return resultado
+
+def remove_invalid_tickets(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove tickets que não têm proprietário ou prioridade preenchidos.
+    Esses tickets não podem ser atribuídos a ninguém no relatório.
+    """
+    return df.dropna(subset=['Proprietário do ticket', 'Prioridade']).copy()

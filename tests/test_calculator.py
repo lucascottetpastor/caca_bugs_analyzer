@@ -52,7 +52,7 @@ def test_valores_por_prioridade():
     assert len(report) == 1, "Deve haver apenas 1 colaborador no relatório"
 
     row = report.iloc[0]
-    assert row["total_bugs"] == 4
+    assert row["total_bugs"] == 3
     assert row["positivo"] == 175.0
     assert row["negativo"] == 0.0
     assert row["saldo"] == 175.0
