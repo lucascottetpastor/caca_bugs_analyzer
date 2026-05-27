@@ -100,4 +100,21 @@ def test_filtra_apenas_atendimento():
     assert report.iloc[0]["Proprietário do ticket"] == "Maria"
     assert report.iloc[0]["saldo"] == 100.0
 
+# TESTE 4 - Filtro do mês
+
+def test_filtra_por_mes():
+    """
+    Apenas tickets do mês/ano informados devem ser considerados
+    """
+
+    tickets = [
+        {**make_ticket(ticket_id="1"), 'Data de criação': '2026-05-10'}, # Maio
+        {**make_ticket(ticket_id="2"), 'Data de criação': '2026-05-22'}, # Maio
+        {**make_ticket(ticket_id="3"), 'Data de criação': '2026-04-15'}, # Abril
+    ]
     
+    df = pd.DataFrame(tickets)
+
+    report = services.campaign_calculator.filter_by_month(df, month=5, year=2026)
+
+    assert len(report) == 2, "Apenas os 2 tickets de Maio devem ser mantidos"

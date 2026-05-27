@@ -1,6 +1,21 @@
 import streamlit as st
 
-from services.campaign_calculator import (calculate_report, read_sheet, list_sheet_names)
+from services.campaign_calculator import (calculate_report, read_sheet, list_sheet_names, filter_by_month, get_available_months)
+
+MESES_PT = {
+    1: "Janeiro",
+    2: "Fevereiro",
+    3: "Março",
+    4: "Abril",
+    5: "Maio",
+    6: "Junho",
+    7: "Julho",
+    8: "Agosto",
+    9: "Setembro",
+    10: "Outubro",
+    11: "Novembro",
+    12: "Dezembro"
+}
 
 # config pagina
 
@@ -34,16 +49,42 @@ selected_sheet = st.selectbox(
     help="Selecione a aba da planilha que contém os dados dos tickets. Normalmente é a aba 'Todos os Tickets'."
 )
 
-# processar + exibir
-
 try:
     df = read_sheet(uploaded_file, selected_sheet)
-    report = calculate_report(df)
 
-    st.success(f"Análise concluída! {len(report)} colaborador(es) encontrado(s) no relatório.")
+    # + filtro de mes
+    meses_disponiveis = get_available_months(df)
+
+    if not meses_disponiveis:
+        st.warning("A planilha não contém datas de criação válidas para filtrar.")
+        st.stop()
+
+    selected_month_index = st.selectbox(
+        "Selecione o mês da campanha",
+        options=range(len(meses_disponiveis)),
+        format_func=lambda i: f"{MESES_PT[meses_disponiveis[i][1]]}/{meses_disponiveis[i][0]}",
+        help="Apenas os meses presentes na planilha aparecem aqui.",
+    )
+    selected_year, selected_month = meses_disponiveis[selected_month_index]
+
+    df_filtered = filter_by_month(df, year=selected_year, month=selected_month)
+
+    # processar + exibir
+    report = calculate_report(df_filtered)
+
+    if len(report) == 0:
+        st.warning(
+            f"Nenhum ticket encontrado em {MESES_PT[selected_month]}/{selected_year}."
+        )
+        st.stop()
+
+    st.success(
+        f"Análise de {MESES_PT[selected_month]}/{selected_year} concluída! "
+        f"{len(report)} colaborador(es) encontrado(s) no relatório."
+    )
 
     st.subheader("📊 Relatório Consolidado")
-    st.dataframe(report, use_container_width=True, hide_index=True)
+    st.dataframe(report, width="stretch", hide_index=True)
 
 except ValueError as e:
     # erros de validacao dos dados

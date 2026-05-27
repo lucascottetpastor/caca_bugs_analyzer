@@ -7,6 +7,14 @@ PRIORITY_VALUES = {
     'Baixa':   0.0,     # Melhoria
 }
 
+IGNORED_STATUS = [
+    'Solicitação'
+    ]
+
+INFORMATIVE_PRIORITY = [
+    'Baixa'
+    ]
+
 NOT_A_BUG_STATUS = 'Não é bug'
 NOT_A_BUG_PENALTY = -200.0
 
@@ -129,3 +137,35 @@ def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
 
     return report
 
+# filtro de mes
+def filter_by_month(df: pd.DataFrame, month: int, year: int) -> pd.DataFrame:
+    """
+    Filtra os tickets, mantendo somente os criados no mês especificado.
+
+    Args:
+        df: DataFrame com os tickets (precisa da coluna "Data de criação")
+        month: mês desejado
+        year: ano desejado
+
+    Returns:
+        DataFrame apenas com os tickets criados no mês/ano especificado.
+    """
+
+    # garantia da coluna data é tipo DataTime
+    datas = pd.to_datetime(df["Data de criação"], errors='coerce')
+
+    mascara = (datas.dt.month == month) & (datas.dt.year == year)
+    return df[mascara].copy()
+
+def get_available_months(df: pd.DataFrame) -> list[tuple[int, int]]:
+    """
+    Retorna a lista de (ano, mês) que existem na planilha, do mais recente
+    para o mais antigo. Serve para popular o seletor de mês na interface.
+    """
+    datas = pd.to_datetime(df['Data de criação'], errors='coerce')
+    
+    # remove datas invalidas e extrai pares (ano, mês) únicos
+    periodos = datas.dropna().dt.to_period('M').unique()
+    
+    resultado = [(p.year, p.month) for p in sorted(periodos, reverse=True)]
+    return resultado
