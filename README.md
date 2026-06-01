@@ -1,4 +1,4 @@
-<h1 align="center">🐞 Caça aos Bugs — Analyzer</h1>
+<h1 align="center">🐞 Caça aos Bugs - Analyzer</h1>
 
 <p align="center">
   Aplicação web para análise de campanha da <strong> <a href="https://www.zoomeducacaocorporativa.com.br">Zoom Educação Corporativa </a> </strong> <br>
