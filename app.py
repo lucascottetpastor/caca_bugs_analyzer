@@ -6,13 +6,13 @@ from services.campaign_calculator import (calculate_report, read_sheet, list_she
 
 # cores das badges de prioridade no kanban
 PRIORITY_COLORS = {
-    "Urgente": "#EF4444",   # vermelho coral
-    "Alta":    "#F59E0B",   # ambar
-    "Média":   "#695A9B",   # roxo Zoom
-    "Baixa":   "#06B6D4",   # ciano accent
+    "Urgente": "#EF4444",
+    "Alta":    "#F59E0B",
+    "Média":   "#695A9B",
+    "Baixa":   "#06B6D4",
 }
 
-# ordem canonica das colunas do kanban (segue o fluxo de trabalho)
+# ordem canonica das colunas do quadro kanban 
 STATUS_ORDER = [
     "Bug detectado",
     "Backlog de melhorias",
@@ -59,6 +59,10 @@ def encontrar_coluna(df, candidatos: list[str]):
         if nome in df.columns:
             return nome
     return None
+
+def format_brl(valor) -> str:
+    # formata em moeda BR: 1500.5 -> "R$ 1.500,50"
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def montar_card(ticket, id_col, nome_col) -> str:
     # monta o html de 1 card de ticket para o kanban
@@ -239,7 +243,7 @@ try:
         "nao_e_bug": "Não é Bug (exceto Baixa)",
         "positivo": "Saldo Positivo",
         "negativo": "Saldo Negativo",
-        "saldo": "Saldo Final (R$)",
+        "saldo": "Saldo Final",
     }
     report_display = report.rename(columns=COLUNAS_PT)
 
@@ -251,12 +255,12 @@ try:
             return "background-color: #FECACA; color: #991B1B; font-weight: bold;"
         return ""
 
-    colunas_saldo = ["Saldo Positivo", "Saldo Negativo", "Saldo Final (R$)"]
+    colunas_saldo = ["Saldo Positivo", "Saldo Negativo", "Saldo Final"]
 
     styled = (
         report_display.style
         .map(destacar_minimo, subset=[col_bugs])
-        .format("{:.2f}", subset=colunas_saldo)
+        .format(format_brl, subset=colunas_saldo)
     )
 
     st.dataframe(styled, width="stretch", hide_index=True)
@@ -265,8 +269,6 @@ try:
         f"(bugfix/hotfix) no período — colaborador não qualifica na campanha."
     )
 
-    # kanban visual dos tickets filtrados
-    # colunas calculadas do df completo: ficam estaveis ao trocar os filtros
     st.divider()
     render_kanban(df_filtered, ordenar_status(df))
 

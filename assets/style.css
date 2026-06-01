@@ -4,6 +4,16 @@
     --zoom-roxo-mais-claro: #C1BFEE;
 }
 
+/* respiro no topo da pagina */
+.block-container {
+    padding-top: 2.5rem;
+}
+
+/* titulo centralizado */
+h1 {
+    text-align: center;
+}
+
 /* espacamento e cantos dos containers com borda */
 [data-testid="stVerticalBlockBorderWrapper"] {
     border-radius: 12px;
@@ -22,6 +32,10 @@
     border-left: 5px solid var(--zoom-roxo-escuro);
     border-radius: 10px;
     padding: 14px 18px;
+    transition: border-color .15s ease;
+}
+[data-testid="stMetric"]:hover {
+    border-color: var(--zoom-roxo-escuro);
 }
 
 /* tags selecionadas nos multiselects na cor da marca */
