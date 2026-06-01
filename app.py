@@ -1,6 +1,29 @@
+import html
+
 import streamlit as st
 
 from services.campaign_calculator import (calculate_report, read_sheet, list_sheet_names, filter_by_month, get_available_months, apply_filters, calculate_kpis, MIN_VALID_BUGS)
+
+# cores das badges de prioridade no kanban
+PRIORITY_COLORS = {
+    "Urgente": "#EF4444",   # vermelho coral
+    "Alta":    "#F59E0B",   # ambar
+    "Média":   "#695A9B",   # roxo Zoom
+    "Baixa":   "#06B6D4",   # ciano accent
+}
+
+# ordem canonica das colunas do kanban (segue o fluxo de trabalho)
+STATUS_ORDER = [
+    "Bug detectado",
+    "Backlog de melhorias",
+    "em Front-end",
+    "em Back-end",
+    "em Teste",
+    "Aguardando deploy",
+    "Deploy resolvido",
+    "Não é bug",
+    "Solicitação",
+]
 
 MESES_PT = {
     1: "Janeiro",
@@ -25,10 +48,75 @@ st.set_page_config(
     layout="wide",
     )
 
-# carrega o css customizado (acentos Zoom sobre o tema nativo do Streamlit)
+# carrega o css customizado
 def load_css(path: str) -> None:
     with open(path) as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+def encontrar_coluna(df, candidatos: list[str]):
+    # retorna o primeiro nome de coluna presente no df, ou None
+    for nome in candidatos:
+        if nome in df.columns:
+            return nome
+    return None
+
+def montar_card(ticket, id_col, nome_col) -> str:
+    # monta o html de 1 card de ticket para o kanban
+    prioridade = str(ticket.get("Prioridade", "")).strip()
+    cor = PRIORITY_COLORS.get(prioridade, "#64748B")
+    proprietario = html.escape(str(ticket.get("Proprietário do ticket", "—")))
+
+    partes = ['<div class="kanban-card">']
+    if id_col:
+        partes.append(f'<div class="kanban-card-id">#{html.escape(str(ticket[id_col]))}</div>')
+    if nome_col:
+        partes.append(f'<div class="kanban-card-title">{html.escape(str(ticket[nome_col]))}</div>')
+    partes.append(
+        f'<span class="kanban-badge" style="background:{cor}">'
+        f'{html.escape(prioridade) or "—"}</span>'
+    )
+    partes.append(f'<div class="kanban-card-owner">👤 {proprietario}</div>')
+    partes.append("</div>")
+    return "".join(partes)
+
+def ordenar_status(df) -> list[str]:
+    # define a ordem das colunas: primeiro o fluxo conhecido, depois os extras
+    presentes = set(df["Status do ticket"].dropna().unique())
+    ordenados = [s for s in STATUS_ORDER if s in presentes]
+    extras = sorted(presentes - set(STATUS_ORDER))
+    return ordenados + extras
+
+def render_kanban(df_kanban, status_cols: list[str]) -> None:
+    # mostra os tickets como cards agrupados por status, em colunas fixas
+    st.subheader("🗂️ Tickets por status")
+    st.caption(f"{len(df_kanban)} ticket(s) no recorte atual")
+
+    if not status_cols:
+        st.info("Sem status para exibir no kanban.")
+        return
+
+    id_col = encontrar_coluna(df_kanban, ["Ticket ID", "ID do ticket", "ID"])
+    nome_col = encontrar_coluna(df_kanban, ["Nome do ticket", "Assunto", "Título", "Titulo"])
+
+    # colunas fixas: aparecem sempre, mesmo vazias apos filtrar
+    colunas_html = []
+    for status in status_cols:
+        do_status = df_kanban[df_kanban["Status do ticket"] == status]
+        cards = "".join(montar_card(t, id_col, nome_col) for _, t in do_status.iterrows())
+        if not cards:
+            cards = '<div class="kanban-empty">Sem tickets</div>'
+        colunas_html.append(
+            f'<div class="kanban-col">'
+            f'<div class="kanban-col-header">{html.escape(str(status))} '
+            f'<span class="count">· {len(do_status)}</span></div>'
+            f'<div class="kanban-col-body">{cards}</div>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div class="kanban-board">{"".join(colunas_html)}</div>',
+        unsafe_allow_html=True,
+    )
 
 load_css("assets/style.css")
 
@@ -176,6 +264,11 @@ try:
         f"🔴 Bugs Válidos em vermelho: menos de {MIN_VALID_BUGS} bugs válidos\n"
         f"(bugfix/hotfix) no período — colaborador não qualifica na campanha."
     )
+
+    # kanban visual dos tickets filtrados
+    # colunas calculadas do df completo: ficam estaveis ao trocar os filtros
+    st.divider()
+    render_kanban(df_filtered, ordenar_status(df))
 
 except ValueError as e:
     # erros de validacao dos dados

@@ -1,21 +1,7 @@
-/* =========================================================
-   Caça aos Bugs - Analyzer
-   Identidade visual Zoom sobre o tema NATIVO do Streamlit.
-   Regra de ouro: so mexemos em ACENTOS (bordas roxas). Fundo
-   e texto ficam por conta do tema nativo (Light/Dark do menu
-   do Streamlit), entao tudo permanece legivel nos dois modos.
-   ========================================================= */
-
 :root {
     --zoom-roxo-escuro: #695A9B;
     --zoom-roxo-claro: #A699E1;
     --zoom-roxo-mais-claro: #C1BFEE;
-}
-
-/* titulo principal com barra de acento da marca */
-h1 {
-    border-bottom: 3px solid var(--zoom-roxo-escuro);
-    padding-bottom: .35rem;
 }
 
 /* espacamento e cantos dos containers com borda */
@@ -47,4 +33,90 @@ h1 {
 [data-testid="stDataFrame"] {
     border-radius: 10px;
     overflow: hidden;
+}
+
+/* board com rolagem horizontal */
+.kanban-board {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+}
+/* cada coluna tem largura fixa e nao encolhe */
+.kanban-col {
+    flex: 0 0 270px;
+    width: 270px;
+    scroll-snap-align: start;
+}
+/* cabecalho de cada coluna de status */
+.kanban-col-header {
+    font-weight: 700;
+    font-size: .9rem;
+    padding: 6px 10px;
+    border-bottom: 2px solid var(--zoom-roxo-escuro);
+    margin-bottom: 10px;
+    position: sticky;
+    top: 0;
+}
+.kanban-col-header .count {
+    opacity: .7;
+    font-weight: 600;
+}
+/* corpo da coluna rolavel para nao esticar a pagina */
+.kanban-col-body {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+/* placeholder quando a coluna fica sem tickets apos filtrar */
+.kanban-empty {
+    font-size: .78rem;
+    opacity: .5;
+    font-style: italic;
+    padding: 10px 4px;
+}
+
+/* em telas estreitas, colunas um pouco menores */
+@media (max-width: 640px) {
+    .kanban-col {
+        flex-basis: 78vw;
+        width: 78vw;
+    }
+}
+
+/* card de ticket: so borda de acento, texto/fundo herdam do tema nativo */
+.kanban-card {
+    border: 1px solid var(--zoom-roxo-mais-claro);
+    border-left: 4px solid var(--zoom-roxo-escuro);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+}
+.kanban-card-id {
+    font-size: .72rem;
+    opacity: .65;
+}
+.kanban-card-title {
+    font-weight: 600;
+    font-size: .85rem;
+    margin: 2px 0 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.kanban-card-owner {
+    font-size: .75rem;
+    opacity: .85;
+    margin-top: 6px;
+}
+.kanban-badge {
+    display: inline-block;
+    color: #FFFFFF;
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-size: .7rem;
+    font-weight: 700;
 }

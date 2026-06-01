@@ -17,7 +17,7 @@ NOT_A_BUG_STATUS = 'Não é bug'
 NOT_A_BUG_PENALTY = -200.0
 
 # status de workflow usados nos KPIs
-RESOLVED_STATUS = 'Deploy resolvido'
+RESOLVED_STATUS = 'Deploy (resolvido)'
 AWAITING_DEPLOY_STATUS = 'Aguardando deploy'
 
 # minimo de bugs validos (bugfix/hotfix) para o colaborador qualificar na campanha
@@ -192,7 +192,7 @@ def calculate_kpis(df: pd.DataFrame) -> dict:
             - hotfix_aluno -> int      (prioridade Urgente)
             - hotfix_gestor -> int     (prioridade Alta)
             - bugfix -> int            (prioridade Média)
-            - resolvidos -> int        (status "Deploy resolvido")
+            - resolvidos -> int        (status "Deploy (resolvido)")
             - aguardando_deploy -> int (status "Aguardando deploy")
     """
 

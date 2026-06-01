@@ -155,12 +155,12 @@ def test_calculate_kpis():
     """
     calculate_kpis conta bugs validos por prioridade
     (Urgente=HotFix Aluno, Alta=HotFix Gestor, Média=BugFix)
-    e tickets por status de workflow (Deploy resolvido, Aguardando deploy).
+    e tickets por status de workflow (Deploy (resolvido), Aguardando deploy).
     """
 
     tickets = [
         make_ticket(ticket_id="1", prioridade="Urgente"),
-        make_ticket(ticket_id="2", prioridade="Urgente", status="Deploy resolvido"),
+        make_ticket(ticket_id="2", prioridade="Urgente", status="Deploy (resolvido)"),
         make_ticket(ticket_id="3", prioridade="Alta", status="Aguardando deploy"),
         make_ticket(ticket_id="4", prioridade="Média"),
         make_ticket(ticket_id="5", prioridade="Baixa"),
