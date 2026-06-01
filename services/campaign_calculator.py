@@ -16,6 +16,10 @@ INFORMATIVE_PRIORITY = 'Baixa'
 NOT_A_BUG_STATUS = 'Não é bug'
 NOT_A_BUG_PENALTY = -200.0
 
+# status de workflow usados nos KPIs
+RESOLVED_STATUS = 'Deploy resolvido'
+AWAITING_DEPLOY_STATUS = 'Aguardando deploy'
+
 # minimo de bugs validos (bugfix/hotfix) para o colaborador qualificar na campanha
 MIN_VALID_BUGS = 5
 
@@ -174,6 +178,65 @@ def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
     report = report.sort_values(by="saldo", ascending=False).reset_index(drop=True)
 
     return report
+
+def calculate_kpis(df: pd.DataFrame) -> dict:
+    """
+    Conta os bugs validos por categoria de prioridade, para os KPIs do topo.
+
+    Args:
+        df: DataFrame ja filtrado
+
+    Returns:
+        dicionario com as contagens:
+            - bugs_validos -> int      (total Urgente + Alta + Média validos)
+            - hotfix_aluno -> int      (prioridade Urgente)
+            - hotfix_gestor -> int     (prioridade Alta)
+            - bugfix -> int            (prioridade Média)
+            - resolvidos -> int        (status "Deploy resolvido")
+            - aguardando_deploy -> int (status "Aguardando deploy")
+    """
+
+    vazio = {
+        "bugs_validos": 0, "hotfix_aluno": 0, "hotfix_gestor": 0,
+        "bugfix": 0, "resolvidos": 0, "aguardando_deploy": 0,
+    }
+
+    validate_columns(df)
+
+    eligible = remove_invalid_tickets(df)
+    if eligible.empty:
+        return vazio
+
+    eligible = eligible.copy()
+
+    is_baixa = eligible["Prioridade"] == INFORMATIVE_PRIORITY
+    is_ignorado = eligible["Status do ticket"].isin(IGNORED_STATUS)
+
+    # valor zera para Baixa e status ignorado; bug valido tem valor positivo
+    eligible["valor"] = eligible.apply(calculate_ticket_value, axis=1)
+    eligible.loc[is_baixa | is_ignorado, "valor"] = 0.0
+
+    # conta por prioridade apenas os bugs validos (valor > 0)
+    validos = eligible[eligible["valor"] > 0]
+    por_prioridade = validos["Prioridade"].value_counts()
+
+    hotfix_aluno = int(por_prioridade.get("Urgente", 0))
+    hotfix_gestor = int(por_prioridade.get("Alta", 0))
+    bugfix = int(por_prioridade.get("Média", 0))
+
+    # contagem por status de workflow
+    status = eligible["Status do ticket"]
+    resolvidos = int((status == RESOLVED_STATUS).sum())
+    aguardando_deploy = int((status == AWAITING_DEPLOY_STATUS).sum())
+
+    return {
+        "bugs_validos": hotfix_aluno + hotfix_gestor + bugfix,
+        "hotfix_aluno": hotfix_aluno,
+        "hotfix_gestor": hotfix_gestor,
+        "bugfix": bugfix,
+        "resolvidos": resolvidos,
+        "aguardando_deploy": aguardando_deploy,
+    }
 
 # filtro de mes
 def filter_by_month(df: pd.DataFrame, month: int, year: int) -> pd.DataFrame:

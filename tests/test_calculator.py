@@ -148,3 +148,33 @@ def test_apply_filters():
     # filtro vazio = todos os registros
     vazio = services.campaign_calculator.apply_filters(df, {"Equipes atribuídas": []})
     assert len(vazio) == 3
+
+# TESTE 6 - calculate_kpis (contagem por prioridade e por status)
+
+def test_calculate_kpis():
+    """
+    calculate_kpis conta bugs validos por prioridade
+    (Urgente=HotFix Aluno, Alta=HotFix Gestor, Média=BugFix)
+    e tickets por status de workflow (Deploy resolvido, Aguardando deploy).
+    """
+
+    tickets = [
+        make_ticket(ticket_id="1", prioridade="Urgente"),
+        make_ticket(ticket_id="2", prioridade="Urgente", status="Deploy resolvido"),
+        make_ticket(ticket_id="3", prioridade="Alta", status="Aguardando deploy"),
+        make_ticket(ticket_id="4", prioridade="Média"),
+        make_ticket(ticket_id="5", prioridade="Baixa"),
+        # "Não é bug" nao conta como bug valido
+        make_ticket(ticket_id="6", prioridade="Urgente", status="Não é bug"),
+    ]
+
+    df = pd.DataFrame(tickets)
+
+    kpis = services.campaign_calculator.calculate_kpis(df)
+
+    assert kpis["hotfix_aluno"] == 2
+    assert kpis["hotfix_gestor"] == 1
+    assert kpis["bugfix"] == 1
+    assert kpis["bugs_validos"] == 4
+    assert kpis["resolvidos"] == 1
+    assert kpis["aguardando_deploy"] == 1

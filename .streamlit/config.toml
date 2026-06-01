@@ -1,0 +1,4 @@
+# tema base segue o light/dark do usuario; so definimos o acento da marca Zoom
+[theme]
+primaryColor = "#695A9B"
+font = "sans serif"

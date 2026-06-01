@@ -1,0 +1,50 @@
+/* =========================================================
+   Caça aos Bugs - Analyzer
+   Identidade visual Zoom sobre o tema NATIVO do Streamlit.
+   Regra de ouro: so mexemos em ACENTOS (bordas roxas). Fundo
+   e texto ficam por conta do tema nativo (Light/Dark do menu
+   do Streamlit), entao tudo permanece legivel nos dois modos.
+   ========================================================= */
+
+:root {
+    --zoom-roxo-escuro: #695A9B;
+    --zoom-roxo-claro: #A699E1;
+    --zoom-roxo-mais-claro: #C1BFEE;
+}
+
+/* titulo principal com barra de acento da marca */
+h1 {
+    border-bottom: 3px solid var(--zoom-roxo-escuro);
+    padding-bottom: .35rem;
+}
+
+/* espacamento e cantos dos containers com borda */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 12px;
+}
+
+/* destaque dos passos de preenchimento (containers com key) */
+.st-key-passo-upload,
+.st-key-passo-aba,
+.st-key-passo-filtros {
+    border-left: 5px solid var(--zoom-roxo-escuro) !important;
+}
+
+/* KPIs como cartoes: so borda de acento, sem mexer no fundo */
+[data-testid="stMetric"] {
+    border: 1px solid var(--zoom-roxo-mais-claro);
+    border-left: 5px solid var(--zoom-roxo-escuro);
+    border-radius: 10px;
+    padding: 14px 18px;
+}
+
+/* tags selecionadas nos multiselects na cor da marca */
+[data-baseweb="tag"] {
+    background-color: var(--zoom-roxo-escuro) !important;
+}
+
+/* tabela consolidada com cantos arredondados */
+[data-testid="stDataFrame"] {
+    border-radius: 10px;
+    overflow: hidden;
+}
