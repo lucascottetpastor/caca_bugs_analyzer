@@ -52,7 +52,10 @@ def test_valores_por_prioridade():
     assert len(report) == 1, "Deve haver apenas 1 colaborador no relatório"
 
     row = report.iloc[0]
-    assert row["total_bugs"] == 3
+    assert row["total_cards"] == 4
+    assert row["bugs_validos"] == 3
+    assert row["baixa_prioridade"] == 1
+    assert row["nao_e_bug"] == 0
     assert row["positivo"] == 175.0
     assert row["negativo"] == 0.0
     assert row["saldo"] == 175.0
@@ -74,7 +77,9 @@ def test_penalidade_nao_e_bug():
     report = services.campaign_calculator.calculate_report(df)
 
     row = report.iloc[0]
-    assert row["total_bugs"] == 2
+    assert row["total_cards"] == 2
+    assert row["bugs_validos"] == 1
+    assert row["nao_e_bug"] == 1
     assert row["positivo"] == 100.0
     assert row["negativo"] == -200.0
     assert row["saldo"] == -100.0

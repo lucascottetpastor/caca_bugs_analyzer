@@ -1,6 +1,6 @@
 import streamlit as st
 
-from services.campaign_calculator import (calculate_report, read_sheet, list_sheet_names, filter_by_month, get_available_months)
+from services.campaign_calculator import (calculate_report, read_sheet, list_sheet_names, filter_by_month, get_available_months, apply_filters, MIN_VALID_BUGS)
 
 MESES_PT = {
     1: "Janeiro",
@@ -59,15 +59,51 @@ try:
         st.warning("A planilha não contém datas de criação válidas para filtrar.")
         st.stop()
 
-    selected_month_index = st.selectbox(
-        "Selecione o mês da campanha",
-        options=range(len(meses_disponiveis)),
-        format_func=lambda i: f"{MESES_PT[meses_disponiveis[i][1]]}/{meses_disponiveis[i][0]}",
-        help="Apenas os meses presentes na planilha aparecem aqui.",
-    )
+    # filtros em linha horizontal
+    col_mes, col_equipe, col_prioridade, col_proprietario = st.columns(4)
+
+    with col_mes:
+        selected_month_index = st.selectbox(
+            "Mês",
+            options=range(len(meses_disponiveis)),
+            format_func=lambda i: f"{MESES_PT[meses_disponiveis[i][1]]}/{meses_disponiveis[i][0]}",
+            help="Define o período da campanha. Apenas os meses presentes na planilha aparecem aqui.",
+        )
     selected_year, selected_month = meses_disponiveis[selected_month_index]
 
-    df_filtered = filter_by_month(df, year=selected_year, month=selected_month)
+    # filtra por mes primeiro, os demais mostram so o que existe no mes
+    df_mes = filter_by_month(df, year=selected_year, month=selected_month)
+
+    with col_equipe:
+        equipe_selecionada = st.multiselect(
+            "Equipe",
+            options=df_mes["Equipes atribuídas"].dropna().unique().tolist(),
+            help="Selecione uma ou mais equipes. Deixe vazio para incluir todas.",
+        )
+    with col_prioridade:
+        prioridade_selecionada = st.multiselect(
+            "Prioridade",
+            options=df_mes["Prioridade"].dropna().unique().tolist(),
+            help="Selecione uma ou mais prioridades. Deixe vazio para incluir todas.",
+        )
+    with col_proprietario:
+        proprietario_selecionado = st.multiselect(
+            "Proprietário",
+            options=df_mes["Proprietário do ticket"].dropna().unique().tolist(),
+            help="Selecione um ou mais proprietários. Deixe vazio para incluir todos.",
+        )
+
+    filtros = {
+        "Equipes atribuídas": equipe_selecionada,
+        "Prioridade": prioridade_selecionada,
+        "Proprietário do ticket": proprietario_selecionado,
+    }
+
+    df_filtered = apply_filters(df_mes, filtros)
+
+    if df_filtered.empty:
+        st.warning("Nenhum ticket corresponde aos filtros selecionados.")
+        st.stop()
 
     # processar + exibir
     report = calculate_report(df_filtered)
@@ -84,7 +120,40 @@ try:
     )
 
     st.subheader("📊 Relatório Consolidado")
-    st.dataframe(report, width="stretch", hide_index=True)
+
+    COLUNAS_PT = {
+        "Proprietário do ticket": "Proprietário",
+        "total_cards": "Total de Cards Criados",
+        "bugs_validos": "Bugs Válidos (bugfix/hotfix)",
+        "baixa_prioridade": "Baixa Prioridade",
+        "nao_e_bug": "Não é Bug (exceto Baixa)",
+        "positivo": "Saldo Positivo",
+        "negativo": "Saldo Negativo",
+        "saldo": "Saldo Final (R$)",
+    }
+    report_display = report.rename(columns=COLUNAS_PT)
+
+    col_bugs = COLUNAS_PT["bugs_validos"]
+
+    def destacar_minimo(valor):
+        # colaboradores com menos de MIN_VALID_BUGS bugs validos nao qualificam
+        if valor < MIN_VALID_BUGS:
+            return "background-color: #FECACA; color: #991B1B; font-weight: bold;"
+        return ""
+
+    colunas_saldo = ["Saldo Positivo", "Saldo Negativo", "Saldo Final (R$)"]
+
+    styled = (
+        report_display.style
+        .map(destacar_minimo, subset=[col_bugs])
+        .format("{:.2f}", subset=colunas_saldo)
+    )
+
+    st.dataframe(styled, width="stretch", hide_index=True)
+    st.caption(
+        f"🔴 Bugs Válidos em vermelho: menos de {MIN_VALID_BUGS} bugs válidos\n"
+        f"(bugfix/hotfix) no período — colaborador não qualifica na campanha."
+    )
 
 except ValueError as e:
     # erros de validacao dos dados

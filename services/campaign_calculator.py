@@ -16,6 +16,9 @@ INFORMATIVE_PRIORITY = 'Baixa'
 NOT_A_BUG_STATUS = 'Não é bug'
 NOT_A_BUG_PENALTY = -200.0
 
+# minimo de bugs validos (bugfix/hotfix) para o colaborador qualificar na campanha
+MIN_VALID_BUGS = 5
+
 ELIGIBLE_TEAM = 'Atendimento'
 
 REQUIRED_COLUMNS = [
@@ -112,12 +115,19 @@ def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame com colunas:
             - Proprietário do ticket -> str
-            - total_bugs -> int
-            - bugs_baixa -> int
-            - positivo -> float
-            - negativo -> float
-            - saldo -> float
+            - total_cards -> int       (total de cards criados)
+            - bugs_validos -> int      (bugfix/hotfix, com valor positivo)
+            - baixa_prioridade -> int  (tickets de prioridade Baixa, informativos)
+            - nao_e_bug -> int         ("Não é bug" exceto prioridade Baixa)
+            - positivo -> float        (saldo positivo)
+            - negativo -> float        (saldo negativo)
+            - saldo -> float           (saldo final)
     """
+
+    COLUNAS_REPORT = [
+        "Proprietário do ticket", "total_cards", "bugs_validos",
+        "baixa_prioridade", "nao_e_bug", "positivo", "negativo", "saldo",
+    ]
 
     # todas colunas existem
     validate_columns(df)
@@ -125,38 +135,42 @@ def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
     # remove tickets sem proprietario ou sem prioridade
     eligible = remove_invalid_tickets(df)
 
-    # separa os tickets de prioridade Baixa - coluna informativa
+    if eligible.empty:
+        return pd.DataFrame(columns=COLUNAS_REPORT)
+
+    eligible = eligible.copy()
+
+    # classificacao de cada ticket
     is_baixa = eligible["Prioridade"] == INFORMATIVE_PRIORITY
-    baixa_tickets = eligible[is_baixa]
+    is_nao_bug = eligible["Status do ticket"] == NOT_A_BUG_STATUS
+    is_ignorado = eligible["Status do ticket"].isin(IGNORED_STATUS)
 
-    # demais tickets: remove os status ignorados
-    contaveis = eligible[~is_baixa]
-    contaveis = contaveis[~contaveis["Status do ticket"].isin(IGNORED_STATUS)]
-    contaveis = contaveis.copy()
+    # valor de cada ticket; tickets que nao entram no saldo (Baixa ou status
+    # ignorado) sao zerados
+    eligible["valor"] = eligible.apply(calculate_ticket_value, axis=1)
+    eligible.loc[is_baixa | is_ignorado, "valor"] = 0.0
 
-    contaveis["valor"] = contaveis.apply(calculate_ticket_value, axis=1)
+    eligible["positivo"] = eligible["valor"].where(eligible["valor"] > 0, 0)
+    eligible["negativo"] = eligible["valor"].where(eligible["valor"] < 0, 0)
 
-    contaveis["positivo"] = contaveis["valor"].where(contaveis["valor"] > 0, 0)
-    contaveis["negativo"] = contaveis["valor"].where(contaveis["valor"] < 0, 0)
+    # flags de contagem por categoria
+    eligible["_total"] = 1
+    eligible["_bug_valido"] = (eligible["valor"] > 0).astype(int)
+    eligible["_baixa"] = is_baixa.astype(int)
+    eligible["_nao_e_bug"] = (is_nao_bug & ~is_baixa).astype(int)
 
-    report = contaveis.groupby("Proprietário do ticket").agg(
-        total_bugs = pd.NamedAgg(column="Ticket ID", aggfunc="count"),
+    report = eligible.groupby("Proprietário do ticket").agg(
+        total_cards = pd.NamedAgg(column="_total", aggfunc="sum"),
+        bugs_validos = pd.NamedAgg(column="_bug_valido", aggfunc="sum"),
+        baixa_prioridade = pd.NamedAgg(column="_baixa", aggfunc="sum"),
+        nao_e_bug = pd.NamedAgg(column="_nao_e_bug", aggfunc="sum"),
         positivo = pd.NamedAgg(column="positivo", aggfunc="sum"),
         negativo = pd.NamedAgg(column="negativo", aggfunc="sum"),
     ).reset_index()
 
-    # conta os tickets de Baixa por proprietario
-    baixa_count = baixa_tickets.groupby("Proprietário do ticket").size()
-
-    # adiciona a coluna bugs_baixa (0 se a pessoa nao tem nenhum)
-    report["bugs_baixa"] = report["Proprietário do ticket"].map(baixa_count).fillna(0).astype(int)
-
     report["saldo"] = report["positivo"] + report["negativo"]
 
-    report = report[[
-        "Proprietário do ticket", "total_bugs", "bugs_baixa",
-        "positivo", "negativo", "saldo"
-    ]]
+    report = report[COLUNAS_REPORT]
     report = report.sort_values(by="saldo", ascending=False).reset_index(drop=True)
 
     return report
@@ -208,8 +222,8 @@ def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
     Args:
         df: DataFrame com os tickets
         filters: dicionario onde a chave e o nome da coluna e o valor
-                 e uma lista de valores aceitos. Se a lista estiver vazia
-                 ou for None, o filtro daquela coluna e ignorado.
+        e uma lista de valores aceitos. Se a lista estiver vazia
+        ou for None, o filtro daquela coluna e ignorado.
 
     Returns:
         DataFrame filtrado com apenas os tickets que casam com todos os filtros.
