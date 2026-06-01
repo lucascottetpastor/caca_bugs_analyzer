@@ -79,26 +79,25 @@ def test_penalidade_nao_e_bug():
     assert row["negativo"] == -200.0
     assert row["saldo"] == -100.0
 
-# TESTE 3 - Filtro por time
+# TESTE 3 - calculate_report nao filtra por equipe (V2)
 
-def test_filtra_apenas_atendimento():
+def test_calculate_report_nao_filtra_por_equipe():
     """
-    Tickets de outro times devem ser ignorados. Somente Atendimento.
+    V2: calculate_report nao filtra mais por equipe.
+    Tickets de qualquer time devem aparecer no relatorio.
     """
-    
+
     tickets = [
         make_ticket(ticket_id="1", equipe="Atendimento", prioridade="Urgente", proprietario="Maria"),
-        make_ticket(ticket_id="2", equipe="Desenvolvimento", prioridade="Urgente", proprietario="Pedro"),
-        make_ticket(ticket_id="3", equipe="QA", prioridade="Urgente", proprietario="Ana"),
+        make_ticket(ticket_id="2", equipe="Tecnologia", prioridade="Urgente", proprietario="Pedro"),
     ]
 
     df = pd.DataFrame(tickets)
 
     report = services.campaign_calculator.calculate_report(df)
 
-    assert len(report) == 1, "Apenas Maria (Atendimento) deve aparecer"
-    assert report.iloc[0]["Proprietário do ticket"] == "Maria"
-    assert report.iloc[0]["saldo"] == 100.0
+    assert len(report) == 2, "Ambos colaboradores devem aparecer (sem filtro de equipe)"
+    assert set(report["Proprietário do ticket"]) == {"Maria", "Pedro"}
 
 # TESTE 4 - Filtro do mês
 
@@ -118,3 +117,29 @@ def test_filtra_por_mes():
     report = services.campaign_calculator.filter_by_month(df, month=5, year=2026)
 
     assert len(report) == 2, "Apenas os 2 tickets de Maio devem ser mantidos"
+
+# TESTE 5 - apply_filters (multi-selecao)
+
+def test_apply_filters():
+    """
+    apply_filters: multi-selecao funciona como AND entre colunas;
+    filtro vazio equivale a "todos".
+    """
+
+    tickets = [
+        make_ticket(ticket_id="1", equipe="Atendimento", prioridade="Urgente"),
+        make_ticket(ticket_id="2", equipe="Atendimento", prioridade="Média"),
+        make_ticket(ticket_id="3", equipe="Tecnologia", prioridade="Urgente"),
+    ]
+
+    df = pd.DataFrame(tickets)
+
+    # multi-selecao: Atendimento AND Urgente -> apenas ticket 1
+    filtros = {"Equipes atribuídas": ["Atendimento"], "Prioridade": ["Urgente"]}
+    resultado = services.campaign_calculator.apply_filters(df, filtros)
+    assert len(resultado) == 1
+    assert resultado.iloc[0]["Ticket ID"] == "1"
+
+    # filtro vazio = todos os registros
+    vazio = services.campaign_calculator.apply_filters(df, {"Equipes atribuídas": []})
+    assert len(vazio) == 3

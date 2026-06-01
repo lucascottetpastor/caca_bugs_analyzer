@@ -83,10 +83,15 @@ def calculate_ticket_value(row: pd.Series) -> float:
             - 0.0 se a prioridade não estiver no mapa de valores
     """
     
+    priority = row["Prioridade"]
+
+    # caso especial: "Não é bug" com prioridade Baixa não gera penalidade
+    if row["Status do ticket"] == NOT_A_BUG_STATUS and priority == INFORMATIVE_PRIORITY:
+        return 0.0
+
     if row["Status do ticket"] == NOT_A_BUG_STATUS:
         return NOT_A_BUG_PENALTY
-    
-    priority = row["Prioridade"]
+
     return PRIORITY_VALUES.get(priority, 0.0)
 
 def filter_teams(df: pd.DataFrame) -> pd.DataFrame:
@@ -117,10 +122,8 @@ def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
     # todas colunas existem
     validate_columns(df)
 
-    eligible = filter_teams(df)
-
     # remove tickets sem proprietario ou sem prioridade
-    eligible = remove_invalid_tickets(eligible)
+    eligible = remove_invalid_tickets(df)
 
     # separa os tickets de prioridade Baixa - coluna informativa
     is_baixa = eligible["Prioridade"] == INFORMATIVE_PRIORITY
@@ -197,3 +200,26 @@ def remove_invalid_tickets(df: pd.DataFrame) -> pd.DataFrame:
     Esses tickets não podem ser atribuídos a ninguém no relatório.
     """
     return df.dropna(subset=['Proprietário do ticket', 'Prioridade']).copy()
+
+def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
+    """
+    Aplica filtros de multi-seleção ao DataFrame.
+
+    Args:
+        df: DataFrame com os tickets
+        filters: dicionario onde a chave e o nome da coluna e o valor
+                 e uma lista de valores aceitos. Se a lista estiver vazia
+                 ou for None, o filtro daquela coluna e ignorado.
+
+    Returns:
+        DataFrame filtrado com apenas os tickets que casam com todos os filtros.
+    """
+    resultado = df
+
+    for coluna, valores in filters.items():
+        # filtros vazios sao ignorados (equivale a "todos")
+        if not valores:
+            continue
+        resultado = resultado[resultado[coluna].isin(valores)]
+
+    return resultado.copy()

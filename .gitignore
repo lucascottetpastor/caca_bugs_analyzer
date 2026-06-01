@@ -50,7 +50,7 @@ htmlcov/
 # Uploads de usuários
 uploads/
 
-# Planilhas (exceto fixtures de teste)
+# Planilhas
 *.xlsx
 
 # Logs
