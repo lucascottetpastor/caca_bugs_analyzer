@@ -61,7 +61,7 @@ def encontrar_coluna(df, candidatos: list[str]):
     return None
 
 def format_brl(valor) -> str:
-    # formata em moeda BR: 1500.5 -> "R$ 1.500,50"
+    # formata em moeda BR
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def montar_card(ticket, id_col, nome_col) -> str:
@@ -228,10 +228,10 @@ try:
     kpi1, kpi2, kpi3, kpi4, kpi5, kpi6 = st.columns(6)
     kpi1.metric("Bugs Válidos", kpis["bugs_validos"])
     kpi2.metric("HotFix Visão Aluno", kpis["hotfix_aluno"])
-    kpi3.metric("HotFix visão Gestor", kpis["hotfix_gestor"])
+    kpi3.metric("HotFix Visão Gestor", kpis["hotfix_gestor"])
     kpi4.metric("BugFix", kpis["bugfix"])
-    kpi5.metric("Resolvidos", kpis["resolvidos"])
-    kpi6.metric("Aguardando Deploy", kpis["aguardando_deploy"])
+    kpi5.metric("Melhoria", kpis["melhoria"])
+    kpi6.metric("Resolvidos", kpis["resolvidos"])
 
     st.subheader("📊 Relatório Consolidado")
 
@@ -240,6 +240,7 @@ try:
         "total_cards": "Total de Cards Criados",
         "bugs_validos": "Bugs Válidos (bugfix/hotfix)",
         "baixa_prioridade": "Baixa Prioridade",
+        "melhoria": "Melhoria",
         "nao_e_bug": "Não é Bug (exceto Baixa)",
         "positivo": "Saldo Positivo",
         "negativo": "Saldo Negativo",
@@ -266,7 +267,7 @@ try:
     st.dataframe(styled, width="stretch", hide_index=True)
     st.caption(
         f"🔴 Bugs Válidos em vermelho: menos de {MIN_VALID_BUGS} bugs válidos\n"
-        f"(bugfix/hotfix) no período — colaborador não qualifica na campanha."
+        f"(bugfix/hotfix) no período - colaborador não qualifica na campanha."
     )
 
     st.divider()

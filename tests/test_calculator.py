@@ -166,6 +166,8 @@ def test_calculate_kpis():
         make_ticket(ticket_id="5", prioridade="Baixa"),
         # "Não é bug" nao conta como bug valido
         make_ticket(ticket_id="6", prioridade="Urgente", status="Não é bug"),
+        # melhoria = Baixa + Tipo Bug "Melhoria"
+        {**make_ticket(ticket_id="7", prioridade="Baixa"), "Tipo Bug": "Melhoria"},
     ]
 
     df = pd.DataFrame(tickets)
@@ -176,5 +178,56 @@ def test_calculate_kpis():
     assert kpis["hotfix_gestor"] == 1
     assert kpis["bugfix"] == 1
     assert kpis["bugs_validos"] == 4
+    assert kpis["melhoria"] == 1
     assert kpis["resolvidos"] == 1
-    assert kpis["aguardando_deploy"] == 1
+
+# TESTE 7 - classificacao de melhoria (Baixa + Tipo Bug "Melhoria")
+
+def test_classificacao_melhoria():
+    """
+    melhoria exige as duas condicoes: Prioridade Baixa E Tipo Bug "Melhoria".
+    Baixa sem o tipo conta so em baixa_prioridade; o tipo Melhoria fora de Baixa
+    nao conta. A comparacao do tipo ignora maiuscula/minuscula e espacos.
+    """
+
+    tickets = [
+        # melhoria de verdade -> conta em melhoria E baixa_prioridade
+        {**make_ticket(ticket_id="1", prioridade="Baixa"), "Tipo Bug": "Melhoria"},
+        # match flexivel: espacos e caixa diferente ainda casam
+        {**make_ticket(ticket_id="2", prioridade="Baixa"), "Tipo Bug": "  melhoria "},
+        # Baixa sem tipo melhoria -> so baixa_prioridade
+        {**make_ticket(ticket_id="3", prioridade="Baixa"), "Tipo Bug": "Bug-fix"},
+        # tipo Melhoria fora de Baixa -> nao conta como melhoria
+        {**make_ticket(ticket_id="4", prioridade="Urgente"), "Tipo Bug": "Melhoria"},
+    ]
+
+    df = pd.DataFrame(tickets)
+
+    report = services.campaign_calculator.calculate_report(df)
+
+    row = report.iloc[0]
+    assert row["total_cards"] == 4
+    assert row["baixa_prioridade"] == 3   # tickets 1, 2 e 3 sao Baixa
+    assert row["melhoria"] == 2           # apenas tickets 1 e 2
+    assert row["bugs_validos"] == 1       # ticket 4 (Urgente) ainda e bug valido
+
+# TESTE 8 - sem a coluna Tipo Bug, melhoria fica zerada
+
+def test_melhoria_sem_coluna_tipo_bug():
+    """
+    Exports antigos nao tem a coluna "Tipo Bug"; o relatorio deve rodar normal
+    e a contagem de melhoria deve ser 0.
+    """
+
+    tickets = [
+        make_ticket(ticket_id="1", prioridade="Baixa"),
+        make_ticket(ticket_id="2", prioridade="Média"),
+    ]
+
+    df = pd.DataFrame(tickets)
+
+    report = services.campaign_calculator.calculate_report(df)
+
+    row = report.iloc[0]
+    assert row["baixa_prioridade"] == 1
+    assert row["melhoria"] == 0

@@ -18,7 +18,10 @@ NOT_A_BUG_PENALTY = -200.0
 
 # status de workflow usados nos KPIs
 RESOLVED_STATUS = 'Deploy (resolvido)'
-AWAITING_DEPLOY_STATUS = 'Aguardando deploy'
+
+# coluna de tipo do bug no export do HubSpot; usada pra classificar melhorias
+BUG_TYPE_COLUMN = 'Tipo Bug'
+IMPROVEMENT_TYPE = 'Melhoria'
 
 # minimo de bugs validos (bugfix/hotfix) para o colaborador qualificar na campanha
 MIN_VALID_BUGS = 5
@@ -92,7 +95,7 @@ def calculate_ticket_value(row: pd.Series) -> float:
     
     priority = row["Prioridade"]
 
-    # caso especial: "Não é bug" com prioridade Baixa não gera penalidade
+    # "Não é bug" com prioridade Baixa não gera penalidade
     if row["Status do ticket"] == NOT_A_BUG_STATUS and priority == INFORMATIVE_PRIORITY:
         return 0.0
 
@@ -100,6 +103,33 @@ def calculate_ticket_value(row: pd.Series) -> float:
         return NOT_A_BUG_PENALTY
 
     return PRIORITY_VALUES.get(priority, 0.0)
+
+def is_improvement(df: pd.DataFrame) -> pd.Series:
+    """
+    Marca quais tickets sao melhoria: prioridade Baixa + Tipo Bug "Melhoria".
+
+    A comparacao do tipo e flexivel (ignora maiuscula/minuscula e espacos).
+    A coluna "Tipo Bug" e opcional: exports antigos e fixtures nao tem.
+
+    Args:
+        df: DataFrame com os tickets
+
+    Returns:
+        Serie booleana alinhada ao indice do df:
+            -> True quando Prioridade == Baixa E Tipo Bug == Melhoria
+            -> False quando a coluna Tipo Bug nao existe
+    """
+
+    is_baixa = df["Prioridade"] == INFORMATIVE_PRIORITY
+
+    # coluna opcional: sem ela nao da pra classificar melhoria
+    if BUG_TYPE_COLUMN not in df.columns:
+        return pd.Series(False, index=df.index)
+
+    tipo = df[BUG_TYPE_COLUMN].astype(str).str.strip().str.lower()
+    is_melhoria_tipo = tipo == IMPROVEMENT_TYPE.lower()
+
+    return is_baixa & is_melhoria_tipo
 
 def filter_teams(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -122,6 +152,7 @@ def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
             - total_cards -> int       (total de cards criados)
             - bugs_validos -> int      (bugfix/hotfix, com valor positivo)
             - baixa_prioridade -> int  (tickets de prioridade Baixa, informativos)
+            - melhoria -> int          (Baixa + Tipo Bug "Melhoria", subconjunto de baixa)
             - nao_e_bug -> int         ("Não é bug" exceto prioridade Baixa)
             - positivo -> float        (saldo positivo)
             - negativo -> float        (saldo negativo)
@@ -130,7 +161,7 @@ def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
 
     COLUNAS_REPORT = [
         "Proprietário do ticket", "total_cards", "bugs_validos",
-        "baixa_prioridade", "nao_e_bug", "positivo", "negativo", "saldo",
+        "baixa_prioridade", "melhoria", "nao_e_bug", "positivo", "negativo", "saldo",
     ]
 
     # todas colunas existem
@@ -161,12 +192,14 @@ def calculate_report(df: pd.DataFrame) -> pd.DataFrame:
     eligible["_total"] = 1
     eligible["_bug_valido"] = (eligible["valor"] > 0).astype(int)
     eligible["_baixa"] = is_baixa.astype(int)
+    eligible["_melhoria"] = is_improvement(eligible).astype(int)
     eligible["_nao_e_bug"] = (is_nao_bug & ~is_baixa).astype(int)
 
     report = eligible.groupby("Proprietário do ticket").agg(
         total_cards = pd.NamedAgg(column="_total", aggfunc="sum"),
         bugs_validos = pd.NamedAgg(column="_bug_valido", aggfunc="sum"),
         baixa_prioridade = pd.NamedAgg(column="_baixa", aggfunc="sum"),
+        melhoria = pd.NamedAgg(column="_melhoria", aggfunc="sum"),
         nao_e_bug = pd.NamedAgg(column="_nao_e_bug", aggfunc="sum"),
         positivo = pd.NamedAgg(column="positivo", aggfunc="sum"),
         negativo = pd.NamedAgg(column="negativo", aggfunc="sum"),
@@ -192,13 +225,13 @@ def calculate_kpis(df: pd.DataFrame) -> dict:
             - hotfix_aluno -> int      (prioridade Urgente)
             - hotfix_gestor -> int     (prioridade Alta)
             - bugfix -> int            (prioridade Média)
+            - melhoria -> int          (Baixa + Tipo Bug "Melhoria")
             - resolvidos -> int        (status "Deploy (resolvido)")
-            - aguardando_deploy -> int (status "Aguardando deploy")
     """
 
     vazio = {
         "bugs_validos": 0, "hotfix_aluno": 0, "hotfix_gestor": 0,
-        "bugfix": 0, "resolvidos": 0, "aguardando_deploy": 0,
+        "bugfix": 0, "melhoria": 0, "resolvidos": 0,
     }
 
     validate_columns(df)
@@ -224,18 +257,20 @@ def calculate_kpis(df: pd.DataFrame) -> dict:
     hotfix_gestor = int(por_prioridade.get("Alta", 0))
     bugfix = int(por_prioridade.get("Média", 0))
 
+    # melhorias: Baixa + Tipo Bug "Melhoria"
+    melhoria = int(is_improvement(eligible).sum())
+
     # contagem por status de workflow
     status = eligible["Status do ticket"]
     resolvidos = int((status == RESOLVED_STATUS).sum())
-    aguardando_deploy = int((status == AWAITING_DEPLOY_STATUS).sum())
 
     return {
         "bugs_validos": hotfix_aluno + hotfix_gestor + bugfix,
         "hotfix_aluno": hotfix_aluno,
         "hotfix_gestor": hotfix_gestor,
         "bugfix": bugfix,
+        "melhoria": melhoria,
         "resolvidos": resolvidos,
-        "aguardando_deploy": aguardando_deploy,
     }
 
 # filtro de mes
@@ -294,7 +329,7 @@ def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
     resultado = df
 
     for coluna, valores in filters.items():
-        # filtros vazios sao ignorados (equivale a "todos")
+        # filtros vazios sao ignorados
         if not valores:
             continue
         resultado = resultado[resultado[coluna].isin(valores)]
