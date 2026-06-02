@@ -23,6 +23,15 @@ RESOLVED_STATUS = 'Deploy (resolvido)'
 BUG_TYPE_COLUMN = 'Tipo Bug'
 IMPROVEMENT_TYPE = 'Melhoria'
 
+# categorias de Tipo Bug, na ordem de exibicao no filtro
+BUG_TYPE_CATEGORIES = [
+    'HotFix Visão Aluno',
+    'HotFix Visão Gestor',
+    'BugFix',
+    'Melhoria',
+    'Não Considerado BUG',
+]
+
 # minimo de bugs validos (bugfix/hotfix) para o colaborador qualificar na campanha
 MIN_VALID_BUGS = 5
 
@@ -130,6 +139,43 @@ def is_improvement(df: pd.DataFrame) -> pd.Series:
     is_melhoria_tipo = tipo == IMPROVEMENT_TYPE.lower()
 
     return is_baixa & is_melhoria_tipo
+
+def classify_bug_type(df: pd.DataFrame) -> pd.Series:
+    """
+    Classifica cada ticket numa categoria canonica de Tipo Bug.
+
+    Faz match por substring no valor minusculo.
+    Tipo Bug vazio OU coluna ausente -> "Não Considerado BUG".
+
+    Args:
+        df: DataFrame com os tickets
+
+    Returns:
+        Serie de strings alinhada ao indice do df, com uma das categorias de
+        BUG_TYPE_CATEGORIES:
+            -> "HotFix Visão Aluno" / "HotFix Visão Gestor" / "BugFix" / "Melhoria"
+            -> "Não Considerado BUG" quando vazio ou sem a coluna Tipo Bug
+    """
+
+    # sem a coluna nao da pra classificar; tudo vira nao considerado bug
+    if BUG_TYPE_COLUMN not in df.columns:
+        return pd.Series('Não Considerado BUG', index=df.index)
+
+    tipo = df[BUG_TYPE_COLUMN].astype(str).str.strip().str.lower()
+
+    def categoria(t: str) -> str:
+        # ordem importa: aluno/gestor antes de bug pra nao colidir
+        if "aluno" in t:
+            return "HotFix Visão Aluno"
+        if "gestor" in t:
+            return "HotFix Visão Gestor"
+        if "melhoria" in t:
+            return "Melhoria"
+        if "bug" in t:
+            return "BugFix"
+        return "Não Considerado BUG"
+
+    return tipo.map(categoria)
 
 def filter_teams(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -257,7 +303,7 @@ def calculate_kpis(df: pd.DataFrame) -> dict:
     hotfix_gestor = int(por_prioridade.get("Alta", 0))
     bugfix = int(por_prioridade.get("Média", 0))
 
-    # melhorias: Baixa + Tipo Bug "Melhoria"
+    # melhorias = Baixa + Tipo Bug "Melhoria"
     melhoria = int(is_improvement(eligible).sum())
 
     # contagem por status de workflow

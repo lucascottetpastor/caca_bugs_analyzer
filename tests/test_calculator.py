@@ -181,7 +181,7 @@ def test_calculate_kpis():
     assert kpis["melhoria"] == 1
     assert kpis["resolvidos"] == 1
 
-# TESTE 7 - classificacao de melhoria (Baixa + Tipo Bug "Melhoria")
+# TESTE 7 - classificacao de melhoria (Baixa + Tipo Bug = Melhoria)
 
 def test_classificacao_melhoria():
     """
@@ -231,3 +231,44 @@ def test_melhoria_sem_coluna_tipo_bug():
     row = report.iloc[0]
     assert row["baixa_prioridade"] == 1
     assert row["melhoria"] == 0
+
+# TESTE 9 - classify_bug_type (categorias do filtro)
+
+def test_classify_bug_type():
+    """
+    classify_bug_type mapeia o valor cru de Tipo Bug nas 5 categorias canonicas.
+    Match por substring (caixa/espacos ignorados); vazio -> "Não Considerado BUG".
+    """
+
+    tickets = [
+        {**make_ticket(ticket_id="1"), "Tipo Bug": "Hot-fix visão aluno (impede o aluno de estudar)"},
+        {**make_ticket(ticket_id="2"), "Tipo Bug": "Hot-fix visão gestor (impede criar/editar trilhas)"},
+        {**make_ticket(ticket_id="3"), "Tipo Bug": "Bug-fix (não impede estudar/gestão do aprendizado)"},
+        {**make_ticket(ticket_id="4"), "Tipo Bug": "  MELHORIA "},  # match flexivel
+        {**make_ticket(ticket_id="5"), "Tipo Bug": None},           # vazio
+    ]
+
+    df = pd.DataFrame(tickets)
+
+    categorias = services.campaign_calculator.classify_bug_type(df).tolist()
+
+    assert categorias == [
+        "HotFix Visão Aluno",
+        "HotFix Visão Gestor",
+        "BugFix",
+        "Melhoria",
+        "Não Considerado BUG",
+    ]
+
+# TESTE 10 - classify_bug_type sem a coluna Tipo Bug
+
+def test_classify_bug_type_sem_coluna():
+    """
+    Sem a coluna "Tipo Bug" (exports antigos), tudo vira "Não Considerado BUG".
+    """
+
+    df = pd.DataFrame([make_ticket(ticket_id="1"), make_ticket(ticket_id="2")])
+
+    categorias = services.campaign_calculator.classify_bug_type(df).tolist()
+
+    assert categorias == ["Não Considerado BUG", "Não Considerado BUG"]

@@ -2,7 +2,7 @@ import html
 
 import streamlit as st
 
-from services.campaign_calculator import (calculate_report, read_sheet, list_sheet_names, filter_by_month, get_available_months, apply_filters, calculate_kpis, MIN_VALID_BUGS)
+from services.campaign_calculator import (calculate_report, read_sheet, list_sheet_names, filter_by_month, get_available_months, apply_filters, calculate_kpis, classify_bug_type, BUG_TYPE_CATEGORIES, MIN_VALID_BUGS)
 
 # cores das badges de prioridade no kanban
 PRIORITY_COLORS = {
@@ -163,7 +163,7 @@ try:
     # passo 3 - filtros em linha horizontal
     with st.container(border=True, key="passo-filtros"):
         st.subheader("3️⃣ Filtre os dados")
-        col_mes, col_equipe, col_prioridade, col_proprietario = st.columns(4)
+        col_mes, col_equipe, col_tipo, col_proprietario = st.columns(4)
 
         with col_mes:
             selected_month_index = st.selectbox(
@@ -177,17 +177,21 @@ try:
         # filtra por mes primeiro, os demais mostram so o que existe no mes
         df_mes = filter_by_month(df, year=selected_year, month=selected_month)
 
+        # categoria amigavel de Tipo Bug, usada no filtro
+        df_mes["Categoria Tipo Bug"] = classify_bug_type(df_mes)
+
         with col_equipe:
             equipe_selecionada = st.multiselect(
                 "Equipe",
                 options=df_mes["Equipes atribuídas"].dropna().unique().tolist(),
                 help="Selecione uma ou mais equipes. Deixe vazio para incluir todas.",
             )
-        with col_prioridade:
-            prioridade_selecionada = st.multiselect(
-                "Prioridade",
-                options=df_mes["Prioridade"].dropna().unique().tolist(),
-                help="Selecione uma ou mais prioridades. Deixe vazio para incluir todas.",
+        with col_tipo:
+            categorias = [c for c in BUG_TYPE_CATEGORIES if c in set(df_mes["Categoria Tipo Bug"])]
+            tipo_selecionado = st.multiselect(
+                "Tipo Bug",
+                options=categorias,
+                help="Selecione um ou mais tipos de bug. Deixe vazio para incluir todos.",
             )
         with col_proprietario:
             proprietario_selecionado = st.multiselect(
@@ -198,7 +202,7 @@ try:
 
     filtros = {
         "Equipes atribuídas": equipe_selecionada,
-        "Prioridade": prioridade_selecionada,
+        "Categoria Tipo Bug": tipo_selecionado,
         "Proprietário do ticket": proprietario_selecionado,
     }
 
