@@ -23,14 +23,14 @@ Calcular isso manualmente, por colaborador e por mês, é trabalhoso e sujeito a
 
 O **Caça aos Bugs - Analyzer** automatiza essa apuração: você faz upload da planilha
 exportada do HubSpot e a aplicação devolve KPIs, um relatório consolidado por colaborador
-e um quadro KanBan dos tickets, tudo filtrável por mês, equipe, prioridade e proprietário.
+e um quadro KanBan dos tickets, tudo filtrável por mês, equipe, tipo de bug e proprietário.
 
 ## ✨ Funcionalidades
 
 - **Upload de planilha** `.xlsx` com seleção da aba a analisar
-- **Filtros multi-seleção**: Mês, Equipe, Prioridade e Proprietário (vazio = todos)
+- **Filtros multi-seleção**: Mês, Equipe, Tipo Bug e Proprietário (vazio = todos)
 - **6 KPIs reativos**: Bugs Válidos, HotFix Visão Aluno, HotFix Visão Gestor, BugFix,
-  Resolvidos e Aguardando Deploy
+  Melhoria e Resolvidos
 - **Relatório consolidado** por colaborador, com saldo em moeda BR (`R$ 1.500,50`) e
   destaque em vermelho para quem tem menos de 5 bugs válidos
 - **Kanban visual** dos tickets agrupados por status, com rolagem horizontal e layout
@@ -66,11 +66,19 @@ uv run streamlit run app.py
 A aplicação abre em `LocalHost`. Para trocar entre tema Claro/Escuro,
 use o menu **⋮ → Settings → Theme**.
 
+## ☁️ Deploy
+
+A aplicação é publicada no **[Streamlit Community Cloud](https://share.streamlit.io)**
+, direto deste repositório.
+
+> 🔗 **App online:** _<adicionar a URL `…streamlit.app` após o primeiro deploy>_
+
+
 ## 📋 Como usar
 
 1. **Envie a planilha** `.xlsx` exportada do HubSpot.
 2. **Escolha a aba** que contém os tickets (geralmente "Todos os Tickets").
-3. **Filtre os dados** por mês, equipe, prioridade ou proprietário.
+3. **Filtre os dados** por mês, equipe, tipo de bug ou proprietário.
 4. Acompanhe os **KPIs**, o **relatório consolidado** e o **Quadro Kanban**. Todos
    recalculam conforme os filtros.
 
@@ -83,7 +91,7 @@ use o menu **⋮ → Settings → Theme**.
 | Urgente | R$ 100,00 | HotFix visão Aluno |
 | Alta | R$ 50,00 | HotFix visão Gestor |
 | Média | R$ 25,00 | BugFix |
-| Baixa | R$ 0,00 |
+| Baixa | R$ 0,00 | Informativo |
 
 ### Status especiais
 
@@ -91,11 +99,12 @@ use o menu **⋮ → Settings → Theme**.
 - **`Solicitação`**: ignorado, não entra no cálculo de saldo
 - **Demais status**: considerados bug válido
 
-### Validações
+### Melhoria (coluna `Tipo Bug`)
 
-- Tickets sem **Proprietário** ou sem **Prioridade** são ignorados
-- Colunas obrigatórias: `Equipes atribuídas`, `Status do ticket`, `Prioridade`, `Proprietário do ticket`
-- Colaboradores precisam de no mínimo **5 bugs válidos** para qualificar na campanha
+- Um card é **melhoria** quando `Prioridade = Baixa` **e** `Tipo Bug = Melhoria`.
+- O filtro de **Tipo Bug** agrupa os tickets em 5 categorias: HotFix Visão Aluno,
+  HotFix Visão Gestor, BugFix, Melhoria e **Não Considerado BUG** (`Tipo Bug` vazio).
+
 
 ## 🧪 Testes
 
