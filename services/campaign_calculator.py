@@ -1,3 +1,4 @@
+import warnings
 import pandas as pd
 
 PRIORITY_VALUES = {
@@ -54,7 +55,10 @@ def list_sheet_names(file) -> list[str]:
     Returns:
         Lista de strings com nomes das abas, na ordem que aparecem no Excel.
     """
-    return pd.ExcelFile(file).sheet_names
+    # exports do HubSpot nao trazem estilos; silencia o aviso ruidoso do openpyxl
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Workbook contains no default style")
+        return pd.ExcelFile(file).sheet_names
 
 def read_sheet(file, sheet_name: str) -> pd.DataFrame:
     """
@@ -67,7 +71,10 @@ def read_sheet(file, sheet_name: str) -> pd.DataFrame:
     Returns:
         DataFrame contendo os dados da aba especificada.
     """
-    return pd.read_excel(file, sheet_name=sheet_name)
+    # exports do HubSpot nao trazem estilos; silencia o aviso ruidoso do openpyxl
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Workbook contains no default style")
+        return pd.read_excel(file, sheet_name=sheet_name)
 
 def validate_columns(df: pd.DataFrame) -> None:
     """"
@@ -135,7 +142,8 @@ def is_improvement(df: pd.DataFrame) -> pd.Series:
     if BUG_TYPE_COLUMN not in df.columns:
         return pd.Series(False, index=df.index)
 
-    tipo = df[BUG_TYPE_COLUMN].astype(str).str.strip().str.lower()
+    # fillna antes do astype: no pandas 3.0 (dtype str) celulas vazias viram NaN
+    tipo = df[BUG_TYPE_COLUMN].fillna("").astype(str).str.strip().str.lower()
     is_melhoria_tipo = tipo == IMPROVEMENT_TYPE.lower()
 
     return is_baixa & is_melhoria_tipo
@@ -161,7 +169,9 @@ def classify_bug_type(df: pd.DataFrame) -> pd.Series:
     if BUG_TYPE_COLUMN not in df.columns:
         return pd.Series('Não Considerado BUG', index=df.index)
 
-    tipo = df[BUG_TYPE_COLUMN].astype(str).str.strip().str.lower()
+    # fillna antes do astype: no pandas 3.0 (dtype str) celulas vazias viram NaN
+    # (float) e o .map abaixo quebraria com TypeError
+    tipo = df[BUG_TYPE_COLUMN].fillna("").astype(str).str.strip().str.lower()
 
     def categoria(t: str) -> str:
         # ordem importa: aluno/gestor antes de bug pra nao colidir

@@ -272,3 +272,27 @@ def test_classify_bug_type_sem_coluna():
     categorias = services.campaign_calculator.classify_bug_type(df).tolist()
 
     assert categorias == ["Não Considerado BUG", "Não Considerado BUG"]
+
+# TESTE 11 - regressao pandas 3.0 - NaN em Tipo Bug nao quebra o .map
+
+def test_classify_bug_type_pandas3_dtype_str():
+    """
+    No pandas 3.0 colunas de texto usam o dtype "str", onde celulas vazias viram
+    NaN (float) e astype(str) nao gera mais a string "nan". Isso quebrava o .map
+    do classify_bug_type no deploy. Simulamos esse dtype via future.infer_string.
+    """
+
+    with pd.option_context("future.infer_string", True):
+        df = pd.DataFrame([
+            {**make_ticket(ticket_id="1"), "Tipo Bug": "Hot-fix visão aluno"},
+            {**make_ticket(ticket_id="2"), "Tipo Bug": None},   # vazio -> NaN no dtype str
+            {**make_ticket(ticket_id="3"), "Tipo Bug": "Melhoria"},
+        ])
+
+        categorias = services.campaign_calculator.classify_bug_type(df).tolist()
+
+    assert categorias == [
+        "HotFix Visão Aluno",
+        "Não Considerado BUG",
+        "Melhoria",
+    ]
